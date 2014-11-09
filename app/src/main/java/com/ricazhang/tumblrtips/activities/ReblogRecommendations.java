@@ -1,9 +1,11 @@
-package com.ricazhang.tumblrtips;
+package com.ricazhang.tumblrtips.activities;
 
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+
+import com.ricazhang.tumblrtips.R;
 
 
 public class ReblogRecommendations extends ActionBarActivity {

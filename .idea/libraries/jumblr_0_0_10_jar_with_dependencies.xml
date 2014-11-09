@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="jumblr-0.0.10-jar-with-dependencies">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/app/libs/jumblr-0.0.10-jar-with-dependencies.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

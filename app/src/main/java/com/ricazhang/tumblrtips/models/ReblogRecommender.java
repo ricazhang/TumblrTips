@@ -6,8 +6,6 @@ import com.tumblr.jumblr.JumblrClient;
 import com.tumblr.jumblr.types.Blog;
 import com.tumblr.jumblr.types.Post;
 
-import org.scribe.model.Token;
-
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -27,6 +25,12 @@ public class ReblogRecommender {
     private String consumerKey = "wiQw74bDvGzD9Oe7G0Bpn4jx1GAJaBNTlXudvCYebNOnEYsvBw";
     private String consumerSecret = "pcRgMrZaYSWmSm1lZONeQs64MgWZ3o1C2CwFV8SIWYoTtXWKsh";
 
+    /*
+    public static void main(String args[]) {
+        ReblogRecommender tester = new ReblogRecommender();
+        System.out.println(tester.getRecommendationsFor("their-fire-retain"));
+    }
+    */
 
     public ReblogRecommender() {
         try{
@@ -58,7 +62,7 @@ public class ReblogRecommender {
 
         }
         catch (IOException e) {
-            //Do nothing
+            System.out.println(e.getMessage());
         }
     }
 
@@ -80,24 +84,31 @@ public class ReblogRecommender {
 
     public List<Blog> getRecommendationsFor(String url) {
 
-        List<Blog> favoriteBlogs = getMostReblogged(url, 3);
-        List<Blog> secondDegree;
+        List<String> favoriteBlogs = getMostReblogged(url, 3);
+        List<String> secondDegree = new ArrayList<String>();
+        List<Blog> bestBlogs = new ArrayList<Blog>();
 
-        for(Blog b : favoriteBlogs) {
-            secondDegree.add(getMostReblogged(b.))
+
+        for(String l2url : favoriteBlogs) {
+            //System.out.println(b.getName());
+            secondDegree.addAll(getMostReblogged(l2url, 3));
         }
 
-        //printMap(favoriteBlogs);
-        return favoriteBlogs;
+        for(String s : secondDegree) {
+            bestBlogs.add(myClient.blogInfo(s));
+        }
+
+        return bestBlogs;
     }
 
-    List<Blog> getMostReblogged(String url, int num) {
-        Map<String, Integer> favoriteBlogs = new HashMap<String, Integer>();
-        List<String> lastRoundFavorites;
+    List<String> getMostReblogged(String url, int num) {
+        Map<String, Integer> blogsReblogged = new HashMap<String, Integer>();
+        List<String> lastRoundFavorites = new ArrayList<String>();
         int count = 0;
         int blognumposts = myClient.blogInfo(url).getPostCount();
-        int top_unchanged_count;
+        int top_unchanged_count = 0;
         boolean top_blogs_found = false;
+
 
         while(!top_blogs_found) {
             Map<String, Object> opts = new HashMap<String, Object>();
@@ -109,65 +120,60 @@ public class ReblogRecommender {
             for(Post p : mostRecentPosts)  {
                 String owner = p.getRebloggedFromName();
                 if(owner != null) {
-                    if(favoriteBlogs.get(owner) == null) {
-                        favoriteBlogs.put(owner, 1);
+                    if(blogsReblogged.get(owner) == null) {
+                        blogsReblogged.put(owner, 1);
                     }
                     else {
-                        favoriteBlogs.put(owner, favoriteBlogs.get(owner)+1);
+                        blogsReblogged.put(owner, blogsReblogged.get(owner)+1);
                     }
                 }
             }
 
             //Sort in descending order by number of blogs
-            favoriteBlogs = sortByComparator(favoriteBlogs);
+            blogsReblogged = sortByComparator(blogsReblogged);
 
             //IF this is the first round, get a list of the top reblogged blogs
             if(count == 0) {
                 //Find the top blogs from this round
-                lastRoundFavorites = new ArrayList<String>();
-                List<String> topnames = new ArrayList<String>(favoriteBlogs.keySet());
+                List<String> topnames = new ArrayList<String>(blogsReblogged.keySet());
                 for(int i = 0; i < num; i++) {
                     lastRoundFavorites.add(topnames.get(i));
                 }
 
-                top_unchanged_count = 0;
-            } //Otherwise, compare the top reblog bloggers from this
+            } //Otherwise, compare the top reblog blog from this large data set to the top rebloged blogs from before
             else {
-                List<String> topnames = new ArrayList<String>(favoriteBlogs.keySet());
-
+                List<String> topnames = new ArrayList<String>(blogsReblogged.keySet());
                 boolean allsame = true;
-
-                for(int i = 0; i < lastRoundFavorites.size(); i++) {
-                    if(topnames.get(i) != lastRoundFavorites.get(i)) allsame = false;
+                for(int i = 0; i < num; i++) {
+                    if(topnames.get(i) != lastRoundFavorites.get(i)) {
+                        allsame = false;
+                        break;
+                    }
                 }
 
-                if (allsame) top_unchanged_count++;
+                if (allsame) {
+                    top_unchanged_count++;
+                }
                 else {
                     lastRoundFavorites = new ArrayList<String>();
-                    for(int i = 0; i < lastRoundFavorites.size(); i++) {
+                    for(int i = 0; i < num; i++) {
                         lastRoundFavorites.add(topnames.get(i));
                     }
                 }
             }
 
             //If you are out of posts, or the top num blogs control 25% of your posts so far, or the top blogs haven't changed)
-            if(sum(favoriteBlogs.values())+20 >= blognumposts || percentileIndex(favoriteBlogs.values(), 0.25) <= num || top_unchanged_count >= 5)
+            if(sum(blogsReblogged.values())+20 >= blognumposts || (percentileIndex(blogsReblogged.values(), 0.25) <= num && sum(blogsReblogged.values()) > 60) || top_unchanged_count >= 4)
             {
+                System.out.println("We've found the best blogs for: "+url);
                 top_blogs_found = true;
             }
-
-            System.out.println("Round: "+count+"\tTopUnchangedCount: "+top_unchanged_count+"\n");
-
             count++;
         }
 
-        favoriteBlogs = new ArrayList<Blog>();
 
-        for(String blogTitle : lastRoundFavorites) {
-            favoriteBlogs.add(myClient.blogInfo(blogTitle));
-        }
-
-        return favoriteBlogs;
+        System.out.println(lastRoundFavorites);
+        return lastRoundFavorites;
     }
 
 
@@ -216,7 +222,7 @@ public class ReblogRecommender {
 
     //Determine how many of your favorite blogs it takes to control p percentile of your posts
     public int percentileIndex(Collection<Integer> collection, double percentile) {
-        List<Integer> numlist = new ArrayList<Integer>(collection)
+        List<Integer> numlist = new ArrayList<Integer>(collection);
 
         int sum = sum(collection);
         int index = 0;
